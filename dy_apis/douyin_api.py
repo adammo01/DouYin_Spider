@@ -2686,10 +2686,14 @@ class DouyinAPI:
         params.add_param("fp", auth.cookie['s_v_web_id'])
         resp = requests.get(f'{DouyinAPI.douyin_url}{api}', headers=headers.get(), cookies=auth.cookie,
                             params=params.get(), verify=False)
-        search_id = resp.headers["X-Tt-Logid"]
+        # X-Tt-Logid / guide_search_words 都不是必然存在：翻页请求（offset>0）、
+        # 空结果与降级响应经常不带。下标取键会 KeyError → 整条搜索在调用方炸掉
+        # （现象：测试站搜完往下滑报「搜索数据源解析异常」）。它们只是关联 id /
+        # 搜索引导词，不是数据本体，缺了给空值即可。
+        search_id = resp.headers.get("X-Tt-Logid", "")
         check_risk_response(resp)
         json_data = resp.json()
-        return search_id, json_data["guide_search_words"], json_data
+        return search_id, json_data.get("guide_search_words") or [], json_data
 
 
 if __name__ == '__main__':
